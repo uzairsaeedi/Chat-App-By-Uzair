@@ -19,6 +19,7 @@ expo-env.d.ts
 
 # Android
 android/app/build/
+android/app/.cxx/
 android/build/
 android/.gradle/
 android/app/google-services.json
