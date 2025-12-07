@@ -1,0 +1,11 @@
+{
+  "enabled": true,
+  "prefabPath": "C:\\Users\\uzair\\.gradle\\caches\\modules-2\\files-2.1\\com.google.prefab\\cli\\2.1.0\\aa32fec809c44fa531f01dcfb739b5b3304d3050\\cli-2.1.0-all.jar",
+  "packages": [
+    "C:\\Users\\uzair\\.gradle\\caches\\8.10.2\\transforms\\0f839437195569227022e709030e837c\\transformed\\react-android-0.76.9-debug\\prefab",
+    "D:\\ChatAppByUzair\\ChatAppByUzair\\node_modules\\react-native-reanimated\\android\\build\\intermediates\\prefab_package\\debug\\prefab",
+    "D:\\ChatAppByUzair\\ChatAppByUzair\\node_modules\\react-native-worklets\\android\\build\\intermediates\\prefab_package\\debug\\prefab",
+    "C:\\Users\\uzair\\.gradle\\caches\\8.10.2\\transforms\\835c7fc77adcc806d35d2238e408e225\\transformed\\hermes-android-0.76.9-debug\\prefab",
+    "C:\\Users\\uzair\\.gradle\\caches\\8.10.2\\transforms\\1957b0db02baa50e26af4d5b92e700f6\\transformed\\fbjni-0.6.0\\prefab"
+  ]
+}
