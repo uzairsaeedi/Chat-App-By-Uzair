@@ -8,6 +8,7 @@ import { MenuProvider } from "react-native-popup-menu";
 import * as Notifications from "expo-notifications";
 import { CallProvider } from "../context/callContext";
 import ErrorBoundary from "../components/ErrorBoundary";
+import codePush from "@revopush/react-native-code-push";
 
 if (
   Platform.OS !== "web" &&
@@ -41,11 +42,14 @@ const MainLayout = () => {
   useEffect(() => {
     if (Platform.OS === "web") return;
 
-    const sub = Notifications.addNotificationResponseReceivedListener(
+    // Handle notification taps (app in background/killed)
+    const responseSub = Notifications.addNotificationResponseReceivedListener(
       (response) => {
         try {
           const data = response?.notification?.request?.content?.data || {};
+          console.log('[Notification] Received notification response:', data);
           if (data && data.screen === "incomingCallScreen" && data.callId) {
+            console.log('[Notification] Navigating to incoming call screen:', data.callId);
             router.push({
               pathname: "/incomingCallScreen",
               params: { callId: data.callId },
@@ -57,9 +61,29 @@ const MainLayout = () => {
       }
     );
 
+    // Handle notifications received while app is in foreground
+    const receivedSub = Notifications.addNotificationReceivedListener(
+      (notification) => {
+        try {
+          const data = notification?.request?.content?.data || {};
+          console.log('[Notification] Received notification while in foreground:', data);
+          if (data && data.screen === "incomingCallScreen" && data.callId) {
+            console.log('[Notification] Auto-navigating to incoming call screen:', data.callId);
+            router.push({
+              pathname: "/incomingCallScreen",
+              params: { callId: data.callId },
+            });
+          }
+        } catch (e) {
+          console.warn("notification received handler err", e);
+        }
+      }
+    );
+
     return () => {
       try {
-        sub && sub.remove && sub.remove();
+        responseSub && responseSub.remove && responseSub.remove();
+        receivedSub && receivedSub.remove && receivedSub.remove();
       } catch (e) {}
     };
   }, [router]);
@@ -67,7 +91,7 @@ const MainLayout = () => {
   return <Slot />;
 };
 
-export default function RootLayout() {
+function RootLayout() {
   return (
     <ErrorBoundary>
       <MenuProvider>
@@ -80,3 +104,5 @@ export default function RootLayout() {
     </ErrorBoundary>
   );
 }
+
+export default codePush(RootLayout);

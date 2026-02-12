@@ -1,0 +1,6 @@
+# Dummy Podfile for RevoPush Android releases
+platform :ios, '13.0'
+
+target 'ChatAppByUzair' do
+  # Required for RevoPush validation
+end

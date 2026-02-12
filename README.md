@@ -51,10 +51,6 @@ A full-featured real-time chat application built with React Native, Expo, Fireba
 - Loading states
 - Error boundaries
 
-## 📱 Screenshots
-
-> Add your app screenshots here
-
 ## 🚀 Getting Started
 
 ### Prerequisites
@@ -379,4 +375,3 @@ For support, email your-email@example.com or open an issue in the repository.
 
 ---
 
-**Made with ❤️ by Uzair**

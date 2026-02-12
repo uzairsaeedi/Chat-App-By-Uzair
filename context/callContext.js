@@ -16,6 +16,7 @@ import {
 } from "firebase/firestore";
 import { db } from "../firebaseConfig";
 import { createPeerConnection, getLocalStream } from "../utils/webrtc";
+import { sendExpoPush } from "../utils/notification";
 import { useRouter } from "expo-router";
 
 const CallContext = createContext();
@@ -110,12 +111,16 @@ export const CallProvider = ({ children }) => {
       const calleeSnap = await getDoc(doc(db, "users", callee.userId));
       const token = calleeSnap.exists() ? calleeSnap.data().pushToken : null;
       if (token) {
-        await sendExpoPush(
+        console.log('[Call] Sending notification to callee...');
+        const result = await sendExpoPush(
           token,
           `${caller.username || "Caller"} is calling`,
           isVideo ? "Video call" : "Voice call",
-          { screen: "IncomingCallScreen", callId: callDocRef.id }
+          { screen: "incomingCallScreen", callId: callDocRef.id }
         );
+        console.log('[Call] Notification sent:', result?.data?.[0]?.status || 'success');
+      } else {
+        console.warn('[Call] Callee has no push token registered');
       }
 
       const callerCandidatesCol = collection(callDocRef, "callerCandidates");

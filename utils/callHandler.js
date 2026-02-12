@@ -83,7 +83,7 @@ export async function startCall({ caller, callee, isVideo = false, router }) {
         `${caller.username || "Caller"} is calling`,
         isVideo ? "Video call" : "Voice call",
         {
-          screen: "IncomingCallScreen",
+          screen: "incomingCallScreen",
           callId,
           isVideo: !!isVideo,
           callerName: caller.username,

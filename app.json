@@ -33,7 +33,20 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
-      ]
+      ],
+      [
+      "@revopush/expo-code-push-plugin",
+      {
+        "ios": {
+          "CodePushDeploymentKey": "oLvg_VEOzryuV0CsyHcktjdO_yIiEk6JF6Iv7l",
+          "CodePushServerUrl": "https://api.revopush.org"
+        },
+        "android": {
+          "CodePushDeploymentKey": "oLvg_VEOzryuV0CsyHcktjdO_yIiEk6JF6Iv7l",
+          "CodePushServerUrl": "https://api.revopush.org"
+        }
+      }
+    ]
     ],
     "experiments": {
       "typedRoutes": true

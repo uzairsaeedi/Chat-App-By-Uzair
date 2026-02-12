@@ -35,6 +35,20 @@ export async function registerPushTokenToFirestore(uid) {
   try {
     if (!uid) return null;
 
+    // Request notification permissions first
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+    
+    if (existingStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+    
+    if (finalStatus !== 'granted') {
+      console.warn('Notification permission not granted');
+      return null;
+    }
+
     // Only works on native (dev-client / standalone), may fail on web
     const tokenObj = await Notifications.getExpoPushTokenAsync();
     const token = tokenObj?.data ?? tokenObj?.pushToken ?? null;
@@ -45,6 +59,7 @@ export async function registerPushTokenToFirestore(uid) {
         { pushToken: token },
         { merge: true }
       );
+      console.log('Push token registered:', token.substring(0, 20) + '...');
       return token;
     }
   } catch (e) {
