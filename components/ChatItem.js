@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, TouchableOpacity } from "react-native";
 import { Image } from "expo-image";
-import { blurhash } from "../utils/common";
+import { blurhash, getRoomId } from "../utils/common";
 import { db } from "../firebaseConfig";
 import {
   collection,
@@ -24,12 +24,13 @@ export default function ChatItem({ item, router, noBorder }) {
   const { user } = useAuth();
 
   useEffect(() => {
-    if (!item?.roomId) {
+    // Generate roomId from current user and the item user
+    const roomId = getRoomId(user?.userId, item?.userId);
+    
+    if (!roomId) {
       setLastMessage(null);
       return;
     }
-
-    const roomId = item.roomId;
     const pathInfo = `rooms/${roomId}/messages`;
     console.log("[ChatItem] listening to:", pathInfo);
 
@@ -97,7 +98,7 @@ export default function ChatItem({ item, router, noBorder }) {
     );
 
     return () => unsub();
-  }, [item?.roomId]);
+  }, [item?.userId, user?.userId]);
 
   const openChatRoom = () => {
     router.push({
@@ -127,12 +128,25 @@ export default function ChatItem({ item, router, noBorder }) {
 
   const renderLastMessage = () => {
     if (!lastMessage) return "No messages yet";
-    if (lastMessage.type === "text") return lastMessage.text || "Message";
-    if (lastMessage.type === "image") return "📷 Photo";
-    if (lastMessage.type === "video") return "🎥 Video";
-    if (lastMessage.type === "file")
-      return lastMessage.fileName || "📎 Document";
-    return "Message";
+    
+    // Check if current user sent the message
+    const isMyMessage = lastMessage.userId === user?.userId;
+    const prefix = isMyMessage ? "You: " : "";
+    
+    let messageText = "";
+    if (lastMessage.type === "text") {
+      messageText = lastMessage.text || "Message";
+    } else if (lastMessage.type === "image") {
+      messageText = "📷 Photo";
+    } else if (lastMessage.type === "video") {
+      messageText = "🎥 Video";
+    } else if (lastMessage.type === "file") {
+      messageText = lastMessage.fileName || "📎 Document";
+    } else {
+      messageText = "Message";
+    }
+    
+    return prefix + messageText;
   };
 
   return (
@@ -162,13 +176,18 @@ export default function ChatItem({ item, router, noBorder }) {
           </Text>
         </View>
 
-        <Text
-          numberOfLines={1}
-          style={{ fontSize: hp(1.6) }}
-          className="text-neutral-500"
-        >
-          {renderLastMessage()}
-        </Text>
+        <View className="flex-row items-center gap-1">
+          <Text
+            numberOfLines={1}
+            style={{ fontSize: hp(1.6) }}
+            className={lastMessage?.userId !== user?.userId && !lastMessage?.read ? "text-neutral-800 font-semibold" : "text-neutral-500"}
+          >
+            {renderLastMessage()}
+          </Text>
+          {lastMessage?.userId !== user?.userId && !lastMessage?.read && (
+            <View className="w-2 h-2 bg-blue-500 rounded-full" />
+          )}
+        </View>
       </View>
     </TouchableOpacity>
   );

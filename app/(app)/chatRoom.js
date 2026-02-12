@@ -19,12 +19,16 @@ import {
   query,
   orderBy,
   onSnapshot,
+  updateDoc,
+  where,
+  getDocs,
 } from "firebase/firestore";
 import { db } from "../../firebaseConfig";
 import { getRoomId } from "../../utils/common";
 import { useAuth } from "../../context/authContext";
 import * as ImagePicker from "expo-image-picker";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { formatFirestoreError, formatStorageError, logError } from "../../utils/errorHandler";
 
 export default function ChatRoom() {
   const item = useLocalSearchParams(); //second user
@@ -43,12 +47,18 @@ export default function ChatRoom() {
     const messagesRef = collection(docRef, "messages");
     const q = query(messagesRef, orderBy("createdAt", "asc"));
 
-    let unsub = onSnapshot(q, (snapshot) => {
+    let unsub = onSnapshot(q, async (snapshot) => {
       let allMessages = snapshot.docs.map((doc) => {
         return { id: doc.id, ...doc.data() };
       });
       setMessages([...allMessages]);
+
+      // Mark incoming messages as read
+      await markMessagesAsRead(roomId);
     });
+
+    // Mark messages as read when entering chat
+    markMessagesAsRead(roomId);
 
     return unsub;
   }, []);
@@ -60,6 +70,32 @@ export default function ChatRoom() {
       roomId,
       createdAt: Timestamp.fromDate(new Date()),
     });
+  };
+
+  const markMessagesAsRead = async (roomId) => {
+    try {
+      const messagesRef = collection(db, "rooms", roomId, "messages");
+      
+      // Use a simpler query without composite index for now
+      const snapshot = await getDocs(messagesRef);
+      
+      const updatePromises = snapshot.docs
+        .filter((document) => {
+          const data = document.data();
+          // Only update messages from other user that are unread
+          return data.userId !== user?.userId && data.read === false;
+        })
+        .map((document) =>
+          updateDoc(doc(db, "rooms", roomId, "messages", document.id), {
+            read: true,
+          })
+        );
+      
+      await Promise.all(updatePromises);
+    } catch (err) {
+      // Silently fail - read status is not critical
+      console.log("Mark as read error:", err.message);
+    }
   };
 
   const handleSendMessage = async () => {
@@ -77,6 +113,7 @@ export default function ChatRoom() {
         profileurl: user?.profileurl,
         username: user?.username,
         createdAt: Timestamp.fromDate(new Date()),
+        read: false,
       });
 
       textRef.current = "";
@@ -84,19 +121,26 @@ export default function ChatRoom() {
         inputRef.current.clear();
       }
     } catch (err) {
-      Alert.alert("Message", err.message);
+      logError(err, 'handleSendMessage');
+      const errorMsg = formatFirestoreError(err);
+      Alert.alert("Message Error", errorMsg);
     }
   };
 
   const pickImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      quality: 0.7,
-    });
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.7,
+      });
 
-    if (!result.canceled && result.assets[0]) {
-      await sendMediaMessage(result.assets[0].uri, "image");
+      if (!result.canceled && result.assets[0]) {
+        await sendMediaMessage(result.assets[0].uri, "image");
+      }
+    } catch (err) {
+      logError(err, 'pickImage');
+      Alert.alert("Error", "Failed to pick image");
     }
   };
 
@@ -122,9 +166,12 @@ export default function ChatRoom() {
         profileurl: user?.profileurl,
         username: user?.username,
         createdAt: Timestamp.fromDate(new Date()),
+        read: false,
       });
     } catch (err) {
-      Alert.alert("Error", err.message);
+      logError(err, 'sendMediaMessage');
+      const errorMsg = formatStorageError(err);
+      Alert.alert("Upload Error", errorMsg);
     }
   };
   return (

@@ -17,9 +17,35 @@ export default function ChatRoomHeader({ user }) {
 
   useEffect(() => {
     if (!user?.userId) return;
-    const unsub = onSnapshot(doc(db, "users", user.userId), (snap) => {
-      if (snap.exists()) setStatus(snap.data());
-    });
+    
+    const unsub = onSnapshot(
+      doc(db, "users", user.userId),
+      (snap) => {
+        if (snap.exists()) {
+          const data = snap.data();
+          // Explicitly set the status, ensuring isOnline is a boolean
+          const onlineStatus = data.isOnline === true;
+          console.log(`[ChatRoomHeader] User ${user.username} status:`, {
+            isOnline: onlineStatus,
+            rawIsOnline: data.isOnline,
+            lastSeen: data.lastSeen
+          });
+          setStatus({
+            isOnline: onlineStatus,
+            lastSeen: data.lastSeen || null,
+          });
+        } else {
+          // If document doesn't exist, user is offline
+          console.log(`[ChatRoomHeader] User ${user.username} document not found`);
+          setStatus({ isOnline: false, lastSeen: null });
+        }
+      },
+      (error) => {
+        console.log("Status listener error:", error);
+        setStatus({ isOnline: false, lastSeen: null });
+      }
+    );
+    
     return () => unsub && unsub();
   }, [user?.userId]);
 
@@ -62,22 +88,36 @@ export default function ChatRoomHeader({ user }) {
   const handleVideoCall = () => handleCall(true);
 
   const formatLastSeen = (ts) => {
-    if (!ts?.toDate) return "";
-    const d = ts.toDate();
-    const now = new Date();
-    const same =
-      d.getDate() === now.getDate() &&
-      d.getMonth() === now.getMonth() &&
-      d.getFullYear() === now.getFullYear();
-    if (same)
-      return `Last seen today ${d.toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      })}`;
-    return `Last seen ${d.toLocaleDateString()} ${d.toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-    })}`;
+    if (!ts?.toDate) return "Offline";
+    try {
+      const d = ts.toDate();
+      const now = new Date();
+      const same =
+        d.getDate() === now.getDate() &&
+        d.getMonth() === now.getMonth() &&
+        d.getFullYear() === now.getFullYear();
+      if (same)
+        return `Last seen today at ${d.toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        })}`;
+      return `Last seen ${d.toLocaleDateString([], { month: 'short', day: 'numeric' })}`;
+    } catch (e) {
+      return "Offline";
+    }
+  };
+
+  const handleUserPress = () => {
+    router.push({
+      pathname: "/profile",
+      params: {
+        userId: user.userId,
+        username: user.username,
+        profileurl: user.profileurl,
+        isOnline: status.isOnline,
+        lastSeen: status.lastSeen ? JSON.stringify(status.lastSeen) : null,
+      },
+    });
   };
 
   return (
@@ -89,7 +129,8 @@ export default function ChatRoomHeader({ user }) {
             <TouchableOpacity onPress={() => router.back()}>
               <Entypo name="chevron-left" size={hp(4)} color="#737373" />
             </TouchableOpacity>
-            <View
+            <TouchableOpacity
+              onPress={handleUserPress}
               style={{ flexDirection: "row", alignItems: "center", gap: 12 }}
             >
               <Image
@@ -107,14 +148,14 @@ export default function ChatRoomHeader({ user }) {
                   {user?.username}
                 </Text>
                 {status.isOnline ? (
-                  <Text style={{ color: "#3b82f6" }}>Online</Text>
+                  <Text style={{ color: "#22c55e", fontSize: hp(1.6) }}>Online</Text>
                 ) : (
-                  <Text style={{ color: "#22c55e" }}>
+                  <Text style={{ color: "#737373", fontSize: hp(1.6) }}>
                     {formatLastSeen(status.lastSeen)}
                   </Text>
                 )}
               </View>
-            </View>
+            </TouchableOpacity>
           </View>
         ),
         headerRight: () => (

@@ -7,6 +7,7 @@ import { useRouter } from 'expo-router';
 import Loading from '../components/Loading';
 import CustomKeyboardView from '../components/CustomKeyboardView';
 import { useAuth } from '../context/authContext';
+import { validateEmail, validatePassword } from '../utils/errorHandler';
 
 export default function SignIn() {
   const router = useRouter();
@@ -22,6 +23,20 @@ export default function SignIn() {
         return;
       }
 
+      // Validate email
+      const emailValidation = validateEmail(emailRef.current);
+      if (!emailValidation.valid) {
+        Alert.alert('Invalid Email', emailValidation.message);
+        return;
+      }
+
+      // Validate password
+      const passwordValidation = validatePassword(passwordRef.current);
+      if (!passwordValidation.valid) {
+        Alert.alert('Invalid Password', passwordValidation.message);
+        return;
+      }
+
       setLoading(true);
       try{
         const response = await login(emailRef.current, passwordRef.current);
@@ -29,16 +44,16 @@ export default function SignIn() {
         setLoading(false);
         
         if(!response.success){
-          Alert.alert('SignIn', response.msg || "Login failed. Please try again.");
+          Alert.alert('Sign In', response.msg || "Login failed. Please try again.");
         }else{
-          Alert.alert('Success', 'Logged in successfully!');
+          // No need for success alert, user will be redirected
           router.push('home')
         }
 
       }catch(error){
+        setLoading(false);
         Alert.alert("Error", "An error occurred while logging in.");
       }
-      setLoading(false);
   }
   return (
     <CustomKeyboardView>
@@ -75,7 +90,11 @@ export default function SignIn() {
                   placeholderTextColor={'gray'}
                 />
               </View>
-              <Text style={{fontSize: hp(1.8)}} className="font-semibold text-right text-neutral-500">Forgot Password?</Text>
+              <Pressable onPress={() => router.push('forgotPassword')}>
+                <Text style={{fontSize: hp(1.8)}} className="font-semibold text-right text-indigo-500">
+                  Forgot Password?
+                </Text>
+              </Pressable>
             </View>
 
             <View>

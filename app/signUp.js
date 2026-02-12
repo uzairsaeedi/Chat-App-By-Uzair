@@ -22,6 +22,7 @@ import { useAuth } from "../context/authContext";
 import * as ImagePicker from "expo-image-picker";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { app } from "../firebaseConfig";
+import { validateEmail, validatePassword, validateUsername, formatStorageError, logError } from "../utils/errorHandler";
 
 export default function SignUp() {
   const router = useRouter();
@@ -71,9 +72,10 @@ export default function SignUp() {
       const downloadURL = await getDownloadURL(storageRef);
       return downloadURL;
     } catch (error) {
-      console.error("Upload error:", error);
+      logError(error, 'uploadImageToFirebase');
+      const errorMsg = formatStorageError(error);
       setLoading(false);
-      Alert.alert("Upload Failed", "Something went wrong. Try again.");
+      Alert.alert("Upload Failed", errorMsg);
       return null;
     }
   };
@@ -83,6 +85,28 @@ export default function SignUp() {
       Alert.alert("Sign Up", "Please fill all the fields!");
       return;
     }
+
+    // Validate email
+    const emailValidation = validateEmail(emailRef.current);
+    if (!emailValidation.valid) {
+      Alert.alert('Invalid Email', emailValidation.message);
+      return;
+    }
+
+    // Validate password
+    const passwordValidation = validatePassword(passwordRef.current);
+    if (!passwordValidation.valid) {
+      Alert.alert('Invalid Password', passwordValidation.message);
+      return;
+    }
+
+    // Validate username
+    const usernameValidation = validateUsername(usernameRef.current);
+    if (!usernameValidation.valid) {
+      Alert.alert('Invalid Username', usernameValidation.message);
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -102,12 +126,16 @@ export default function SignUp() {
       if (!response.success) {
         Alert.alert("Sign Up", response.msg);
       } else {
-        Alert.alert("Success", "Account created successfully!");
-        router.push("signIn");
+        Alert.alert("Success", "Account created successfully!", [
+          {
+            text: "OK",
+            onPress: () => router.push("signIn")
+          }
+        ]);
       }
     } catch (error) {
       setLoading(false);
-      console.error("Registration error:", error);
+      logError(error, 'handleRegister');
       Alert.alert("Error", "An error occurred during registration.");
     }
   };

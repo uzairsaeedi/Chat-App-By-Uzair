@@ -7,6 +7,7 @@ import { AuthContextProvider, useAuth } from "../context/authContext";
 import { MenuProvider } from "react-native-popup-menu";
 import * as Notifications from "expo-notifications";
 import { CallProvider } from "../context/callContext";
+import ErrorBoundary from "../components/ErrorBoundary";
 
 if (
   Platform.OS !== "web" &&
@@ -68,12 +69,14 @@ const MainLayout = () => {
 
 export default function RootLayout() {
   return (
-    <MenuProvider>
-      <AuthContextProvider>
-        <CallProvider>
-          <MainLayout />
-        </CallProvider>
-      </AuthContextProvider>
-    </MenuProvider>
+    <ErrorBoundary>
+      <MenuProvider>
+        <AuthContextProvider>
+          <CallProvider>
+            <MainLayout />
+          </CallProvider>
+        </AuthContextProvider>
+      </MenuProvider>
+    </ErrorBoundary>
   );
 }
