@@ -148,11 +148,13 @@ export const AuthContextProvider = ({ children }) => {
 
       // Try to register push token (only on native)
       try {
-        if (
-          Platform.OS !== "web" &&
-          typeof Notifications.getExpoPushTokenAsync === "function"
-        ) {
-          await registerPushTokenToFirestore(userId);
+        if (Platform.OS !== "web") {
+          const token = await registerPushTokenToFirestore(userId);
+          if (token) {
+            console.log('[Auth] Push token registered successfully');
+          } else {
+            console.warn('[Auth] Failed to register push token');
+          }
         }
       } catch (e) {
         console.warn("push token registration failed", e);

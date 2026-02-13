@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { Video } from "expo-av";
 import { useAuth } from "../context/authContext";
-import { AntDesign } from "@expo/vector-icons";
+import { AntDesign, Ionicons } from "@expo/vector-icons";
 
 const { width } = Dimensions.get("window");
 
@@ -103,24 +103,24 @@ const MessagesList = forwardRef(({ messages = [] }, ref) => {
         )}
 
         {isOwn && (
-          <View style={{ flexDirection: "row", justifyContent: "flex-end" }}>
+          <View style={{ flexDirection: "row", justifyContent: "flex-end", alignItems: "center", gap: 2 }}>
             <Text style={styles.timeText}>
               {item.createdAt && item.createdAt.toDate
                 ? formatTime(item.createdAt.toDate())
                 : ""}
             </Text>
-            {item.readBy && item.readBy.length > 1 ? (
-              <Text style={[styles.statusText, { color: "#3b82f6" }]}>
-                Seen
-              </Text>
+            {item.read ? (
+              <View style={{ flexDirection: "row", marginLeft: 4 }}>
+                <Ionicons name="checkmark-done" size={14} color="#53BDEB" />
+              </View>
+            ) : item.delivered ? (
+              <View style={{ flexDirection: "row", marginLeft: 4 }}>
+                <Ionicons name="checkmark-done" size={14} color="#9ca3af" />
+              </View>
             ) : pending ? (
-              <Text style={[styles.statusText, { color: "#1fd655" }]}>
-                Sending...
-              </Text>
+              <Ionicons name="time-outline" size={12} color="#9ca3af" style={{ marginLeft: 4 }} />
             ) : (
-              <Text style={[styles.statusText, { color: "#1fd655" }]}>
-                Sent
-              </Text>
+              <Ionicons name="checkmark" size={14} color="#9ca3af" style={{ marginLeft: 4 }} />
             )}
           </View>
         )}

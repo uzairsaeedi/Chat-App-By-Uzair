@@ -92,6 +92,17 @@ const MainLayout = () => {
 };
 
 function RootLayout() {
+  // CodePush sync for OTA updates (only in production builds)
+  useEffect(() => {
+    if (Platform.OS !== 'web' && !__DEV__) {
+      codePush.sync({
+        updateDialog: false,
+        installMode: codePush.InstallMode.ON_NEXT_RESUME,
+        checkFrequency: codePush.CheckFrequency.ON_APP_RESUME,
+      });
+    }
+  }, []);
+
   return (
     <ErrorBoundary>
       <MenuProvider>
@@ -105,4 +116,4 @@ function RootLayout() {
   );
 }
 
-export default codePush(RootLayout);
+export default RootLayout;

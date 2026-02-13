@@ -50,7 +50,9 @@ export async function registerPushTokenToFirestore(uid) {
     }
 
     // Only works on native (dev-client / standalone), may fail on web
-    const tokenObj = await Notifications.getExpoPushTokenAsync();
+    const tokenObj = await Notifications.getExpoPushTokenAsync({
+      projectId: '18412ab2-1411-4cf5-afeb-26ca690a230e'
+    });
     const token = tokenObj?.data ?? tokenObj?.pushToken ?? null;
 
     if (token) {

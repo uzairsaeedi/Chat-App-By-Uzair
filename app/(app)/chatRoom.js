@@ -53,6 +53,17 @@ export default function ChatRoom() {
       });
       setMessages([...allMessages]);
 
+      // Mark incoming messages as delivered first, then read
+      const undeliveredMessages = snapshot.docs.filter((doc) => {
+        const data = doc.data();
+        return data.userId !== user?.userId && data.delivered === false;
+      });
+
+      // Mark as delivered
+      for (const doc of undeliveredMessages) {
+        await updateDoc(doc.ref, { delivered: true });
+      }
+
       // Mark incoming messages as read
       await markMessagesAsRead(roomId);
     });
@@ -113,8 +124,16 @@ export default function ChatRoom() {
         profileurl: user?.profileurl,
         username: user?.username,
         createdAt: Timestamp.fromDate(new Date()),
+        delivered: false,
         read: false,
       });
+
+      // Mark message as delivered after a short delay (simulating network)
+      setTimeout(async () => {
+        await updateDoc(doc(db, "rooms", roomId, "messages", newDoc.id), {
+          delivered: true,
+        });
+      }, 500);
 
       textRef.current = "";
       if (inputRef.current) {
@@ -166,8 +185,20 @@ export default function ChatRoom() {
         profileurl: user?.profileurl,
         username: user?.username,
         createdAt: Timestamp.fromDate(new Date()),
+        delivered: false,
         read: false,
       });
+
+      // Mark message as delivered
+      setTimeout(async () => {
+        const snapshot = await getDocs(messagesRef);
+        const lastMessage = snapshot.docs[snapshot.docs.length - 1];
+        if (lastMessage) {
+          await updateDoc(doc(db, "rooms", roomId, "messages", lastMessage.id), {
+            delivered: true,
+          });
+        }
+      }, 500);
     } catch (err) {
       logError(err, 'sendMediaMessage');
       const errorMsg = formatStorageError(err);

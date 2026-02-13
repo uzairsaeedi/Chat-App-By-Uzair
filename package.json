@@ -6,11 +6,13 @@
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
     "android": "expo run:android",
+    "android:release": "expo run:android --variant release",
     "ios": "expo run:ios",
     "web": "expo start --web",
     "test": "jest --watchAll",
     "lint": "expo lint",
-    "build:apk": "cd android && .\\gradlew assembleRelease && cd .."
+    "build:apk": "cd android && .\\gradlew assembleRelease && cd ..",
+    "revopush:android": "revopush release-react ChatAppByUzair android -d Production"
   },
   "jest": {
     "preset": "jest-expo"
