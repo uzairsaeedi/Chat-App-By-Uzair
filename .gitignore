@@ -45,12 +45,10 @@ yarn-error.*
 # local env files
 .env*.local
 .env
-*.jar
 
 # keystore files (keep gradle wrapper jar)
 *.jks
-# Allow gradle wrapper jar
-# !gradle-wrapper.jar
+!android/gradle/wrapper/gradle-wrapper.jar
 
 *.pb
 
