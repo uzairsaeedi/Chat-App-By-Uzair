@@ -263,14 +263,14 @@ export default function SignUp() {
               >
                 Already have an account?
               </Text>
-              <Pressable>
+              <TouchableOpacity onPress={() => router.push('signIn')} activeOpacity={0.7}>
                 <Text
                   style={{ fontSize: hp(1.8) }}
                   className="font-bold text-indigo-500"
                 >
-                  Log In
+                  {" "}Log In
                 </Text>
-              </Pressable>
+              </TouchableOpacity>
             </View>
           </View>
         </View>

@@ -1,7 +1,8 @@
 <resources>
   <string name="app_name">ChatAppByUzair</string>
   <string name="expo_system_ui_user_interface_style" translatable="false">automatic</string>
+  <string name="CodePushDeploymentKey" translatable="false">oLvg_VEOzryuV0CsyHcktjdO_yIiEk6JF6Iv7l</string>
+  <string name="CodePushServerUrl" translatable="false">https://api.revopush.org</string>
   <string name="expo_splash_screen_resize_mode" translatable="false">contain</string>
   <string name="expo_splash_screen_status_bar_translucent" translatable="false">false</string>
-  <string moduleConfig="true" name="CodePushDeploymentKey">oLvg_VEOzryuV0CsyHcktjdO_yIiEk6JF6Iv7l</string>
 </resources>

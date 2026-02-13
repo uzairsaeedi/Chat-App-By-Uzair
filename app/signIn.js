@@ -1,4 +1,4 @@
-import { View, Text, Image, TextInput, TouchableOpacity, Pressable, Alert } from 'react-native'
+import { View, Text, Image, TextInput, TouchableOpacity, Alert, ScrollView } from 'react-native'
 import React, { useRef, useState } from 'react'
 import {widthPercentageToDP as wp, heightPercentageToDP as hp} from 'react-native-responsive-screen';
 import { StatusBar } from 'expo-status-bar';
@@ -58,6 +58,13 @@ export default function SignIn() {
   return (
     <CustomKeyboardView>
       <StatusBar style="dark"/>
+      <ScrollView 
+        style={{flex: 1}} 
+        contentContainerStyle={{flexGrow: 1}}
+        bounces={false}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
       <View style={{paddingTop: hp(8), paddingHorizontal: wp(5)}} className= "flex-1 gap-12">
         {/*signIn image */}
         <View className="items-center">
@@ -90,11 +97,11 @@ export default function SignIn() {
                   placeholderTextColor={'gray'}
                 />
               </View>
-              <Pressable onPress={() => router.push('forgotPassword')}>
+              <TouchableOpacity onPress={() => router.push('forgotPassword')} activeOpacity={0.7}>
                 <Text style={{fontSize: hp(1.8)}} className="font-semibold text-right text-indigo-500">
                   Forgot Password?
                 </Text>
-              </Pressable>
+              </TouchableOpacity>
             </View>
 
             <View>
@@ -116,14 +123,15 @@ export default function SignIn() {
 
             <View className="flex-row justify-center">
               <Text style={{fontSize: hp(1.8)}} className="font-semibold text-neutral-500">Don't have an account?</Text>
-              <Pressable onPress={()=> router.push('signUp')}>
-                <Text style={{fontSize: hp(1.8)}} className="font-bold text-indigo-500">Sign Up</Text>
-              </Pressable>
+              <TouchableOpacity onPress={()=> router.push('signUp')} activeOpacity={0.7}>
+                <Text style={{fontSize: hp(1.8)}} className="font-bold text-indigo-500"> Sign Up</Text>
+              </TouchableOpacity>
             </View>
             
           </View>
         </View>
       </View>
+      </ScrollView>
       </CustomKeyboardView>
   )
 }

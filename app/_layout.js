@@ -32,9 +32,14 @@ const MainLayout = () => {
   useEffect(() => {
     if (typeof isAuthenticated === "undefined") return;
     const inApp = segments[0] === "(app)";
+    const currentSegment = segments[0];
+    // Allow access to auth screens when not authenticated
+    const authScreens = ["signIn", "signUp", "forgotPassword"];
+    const onAuthScreen = authScreens.includes(currentSegment);
+    
     if (isAuthenticated && !inApp) {
       router.replace("home");
-    } else if (isAuthenticated === false) {
+    } else if (isAuthenticated === false && !onAuthScreen) {
       router.replace("signIn");
     }
   }, [isAuthenticated, segments, router]);

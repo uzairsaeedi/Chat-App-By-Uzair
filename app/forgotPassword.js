@@ -40,7 +40,7 @@ export default function ForgotPassword() {
           [
             {
               text: 'OK',
-              onPress: () => router.back()
+              onPress: () => router.canGoBack() ? router.back() : router.replace('signIn')
             }
           ]
         );
@@ -102,7 +102,7 @@ export default function ForgotPassword() {
             </View>
 
             <View className="flex-row justify-center mt-4">
-              <TouchableOpacity onPress={() => router.back()}>
+              <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('signIn')}>
                 <Text style={{fontSize: hp(1.8)}} className="font-semibold text-indigo-500">
                   Back to Sign In
                 </Text>

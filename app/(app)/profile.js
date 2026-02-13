@@ -69,7 +69,7 @@ export default function Profile() {
         options={{
           title: "User Profile",
           headerLeft: () => (
-            <TouchableOpacity onPress={() => router.back()}>
+            <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('home')}>
               <Entypo name="chevron-left" size={hp(4)} color="#737373" />
             </TouchableOpacity>
           ),
@@ -150,7 +150,7 @@ export default function Profile() {
           </View>
 
           <TouchableOpacity
-            onPress={() => router.back()}
+            onPress={() => router.canGoBack() ? router.back() : router.replace('home')}
             className="bg-indigo-500 rounded-xl py-4 items-center mt-4"
           >
             <Text

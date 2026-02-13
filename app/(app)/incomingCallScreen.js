@@ -58,7 +58,7 @@ export default function IncomingCallScreen() {
       soundRef.current.stopAsync().catch(() => {});
     }
     await updateDoc(doc(db, "calls", callId), { status: "rejected" });
-    router.back();
+    router.canGoBack() ? router.back() : router.replace('home');
   };
 
   if (!callInfo) return null;

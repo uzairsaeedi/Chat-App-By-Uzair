@@ -120,13 +120,21 @@ export default function ChatRoomHeader({ user }) {
     });
   };
 
+  const handleGoBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('home');
+    }
+  };
+
   return (
     <Stack.Screen
       options={{
         title: "",
         headerLeft: () => (
           <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-            <TouchableOpacity onPress={() => router.back()}>
+            <TouchableOpacity onPress={handleGoBack}>
               <Entypo name="chevron-left" size={hp(4)} color="#737373" />
             </TouchableOpacity>
             <TouchableOpacity

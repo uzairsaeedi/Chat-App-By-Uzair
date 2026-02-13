@@ -51,7 +51,7 @@ export default function OutgoingCallScreen() {
 
   const onCancel = async () => {
     await hangup(callId);
-    router.back();
+    router.canGoBack() ? router.back() : router.replace('home');
   };
 
   return (

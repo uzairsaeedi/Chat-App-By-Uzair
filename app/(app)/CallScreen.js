@@ -12,7 +12,7 @@ export default function CallScreen() {
 
   const onEnd = async () => {
     await hangUp(callId);
-    router.back();
+    router.canGoBack() ? router.back() : router.replace('home');
   };
 
   return (
