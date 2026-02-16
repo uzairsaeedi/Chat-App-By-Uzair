@@ -8,10 +8,10 @@ import { useCall } from "../../context/callContext";
 export default function CallScreen() {
   const router = useRouter();
   const { callId } = useLocalSearchParams();
-  const { localStream, remoteStream, hangUp, isVideoCall } = useCall();
+  const { localStream, remoteStream, hangup, isVideoCall } = useCall();
 
   const onEnd = async () => {
-    await hangUp(callId);
+    await hangup(callId);
     router.canGoBack() ? router.back() : router.replace('home');
   };
 

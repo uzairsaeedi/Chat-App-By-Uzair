@@ -30,6 +30,7 @@ export const AuthContextProvider = ({ children }) => {
     let currentUserId = null;
     let appState = AppState.currentState;
     let offlineTimeout = null;
+    let heartbeatInterval = null;
 
     const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
@@ -38,6 +39,15 @@ export const AuthContextProvider = ({ children }) => {
         setUser(firebaseUser);
         await updateUserData(firebaseUser.uid);
         await setUserOnline(firebaseUser.uid);
+        
+        // Start heartbeat to periodically confirm online status (every 60 seconds)
+        // This helps detect force-closed apps
+        if (heartbeatInterval) clearInterval(heartbeatInterval);
+        heartbeatInterval = setInterval(async () => {
+          if (appState === 'active' && auth.currentUser?.uid) {
+            await setUserOnline(auth.currentUser.uid);
+          }
+        }, 60000); // Update every minute
       } else {
         // User logged out - set previous user offline if exists
         if (currentUserId) {
@@ -47,6 +57,12 @@ export const AuthContextProvider = ({ children }) => {
         setIsAuthenticated(false);
         setUser(null);
         currentUserId = null;
+        
+        // Stop heartbeat
+        if (heartbeatInterval) {
+          clearInterval(heartbeatInterval);
+          heartbeatInterval = null;
+        }
       }
     });
 
@@ -88,6 +104,9 @@ export const AuthContextProvider = ({ children }) => {
       console.log('[Auth] AuthContext unmounting, setting offline');
       if (offlineTimeout) {
         clearTimeout(offlineTimeout);
+      }
+      if (heartbeatInterval) {
+        clearInterval(heartbeatInterval);
       }
       if (currentUserId) {
         // Fire and forget - this might not complete if app force closes
@@ -166,10 +185,11 @@ export const AuthContextProvider = ({ children }) => {
 
   const setUserOnline = async (userId) => {
     try {
-      await updateDoc(doc(db, "users", userId), {
+      // Use setDoc with merge to handle case where document doesn't exist
+      await setDoc(doc(db, "users", userId), {
         isOnline: true,
-        lastOnline: serverTimestamp(), // Track when user was last confirmed online
-      });
+        lastSeen: serverTimestamp(), // Always update lastSeen for consistency
+      }, { merge: true });
       console.log(`[Auth] User ${userId} set to ONLINE`);
     } catch (e) {
       console.log("Error setting user online:", e.message);
@@ -178,10 +198,11 @@ export const AuthContextProvider = ({ children }) => {
 
   const setUserOffline = async (userId) => {
     try {
-      await updateDoc(doc(db, "users", userId), {
+      // Use setDoc with merge to handle case where document doesn't exist
+      await setDoc(doc(db, "users", userId), {
         isOnline: false,
         lastSeen: serverTimestamp(),
-      });
+      }, { merge: true });
       console.log(`[Auth] User ${userId} set to OFFLINE at`, new Date().toISOString());
     } catch (e) {
       console.log("Error setting user offline:", e.message);

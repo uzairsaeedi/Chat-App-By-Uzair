@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, TouchableOpacity } from "react-native";
+import { View, Text, TouchableOpacity, Platform, PermissionsAndroid, Alert } from "react-native";
 import { Image } from "expo-image";
 import { Stack, useRouter } from "expo-router";
 import { doc, onSnapshot } from "firebase/firestore";
@@ -23,8 +23,18 @@ export default function ChatRoomHeader({ user }) {
       (snap) => {
         if (snap.exists()) {
           const data = snap.data();
-          // Explicitly set the status, ensuring isOnline is a boolean
-          const onlineStatus = data.isOnline === true;
+          // Check if isOnline is true AND lastSeen is within last 2 minutes
+          // This handles cases where app was force-closed
+          let onlineStatus = data.isOnline === true;
+          if (onlineStatus && data.lastSeen?.toDate) {
+            const lastSeenTime = data.lastSeen.toDate();
+            const now = new Date();
+            const diffMs = now - lastSeenTime;
+            // If lastSeen is more than 2 minutes old, consider offline
+            if (diffMs > 120000) {
+              onlineStatus = false;
+            }
+          }
           console.log(`[ChatRoomHeader] User ${user.username} status:`, {
             isOnline: onlineStatus,
             rawIsOnline: data.isOnline,
@@ -59,6 +69,27 @@ export default function ChatRoomHeader({ user }) {
         console.warn("No local user id available (meId)");
         return;
       }
+
+      // Request permissions on Android
+      if (Platform.OS === 'android') {
+        const permissions = isVideo 
+          ? [PermissionsAndroid.PERMISSIONS.CAMERA, PermissionsAndroid.PERMISSIONS.RECORD_AUDIO]
+          : [PermissionsAndroid.PERMISSIONS.RECORD_AUDIO];
+        
+        const granted = await PermissionsAndroid.requestMultiple(permissions);
+        
+        const audioGranted = granted[PermissionsAndroid.PERMISSIONS.RECORD_AUDIO] === PermissionsAndroid.RESULTS.GRANTED;
+        const cameraGranted = !isVideo || granted[PermissionsAndroid.PERMISSIONS.CAMERA] === PermissionsAndroid.RESULTS.GRANTED;
+        
+        if (!audioGranted || !cameraGranted) {
+          Alert.alert(
+            'Permissions Required',
+            `Please grant ${isVideo ? 'camera and microphone' : 'microphone'} permissions to make calls.`
+          );
+          return;
+        }
+      }
+
       const res = await startCall(
         {
           caller: { userId: meId, username: meName, profileurl: mePhoto },

@@ -59,6 +59,12 @@ const MainLayout = () => {
               pathname: "/incomingCallScreen",
               params: { callId: data.callId },
             });
+          } else if (data && data.screen === "chatRoom" && data.userId) {
+            console.log('[Notification] Navigating to chat room:', data.userId);
+            router.push({
+              pathname: "/chatRoom",
+              params: { userId: data.userId },
+            });
           }
         } catch (e) {
           console.warn("notification response handler err", e);

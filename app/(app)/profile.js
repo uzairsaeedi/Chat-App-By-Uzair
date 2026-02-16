@@ -25,8 +25,19 @@ export default function Profile() {
       (snap) => {
         if (snap.exists()) {
           const data = snap.data();
+          // Check if isOnline is true AND lastSeen is within last 2 minutes
+          let online = data.isOnline === true;
+          if (online && data.lastSeen?.toDate) {
+            const lastSeenTime = data.lastSeen.toDate();
+            const now = new Date();
+            const diffMs = now - lastSeenTime;
+            // If lastSeen is more than 2 minutes old, consider offline
+            if (diffMs > 120000) {
+              online = false;
+            }
+          }
           setUserStatus({
-            isOnline: data.isOnline === true,
+            isOnline: online,
             lastSeen: data.lastSeen || null,
           });
         }

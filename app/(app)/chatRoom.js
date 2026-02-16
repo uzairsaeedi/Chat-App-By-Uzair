@@ -22,6 +22,7 @@ import {
   updateDoc,
   where,
   getDocs,
+  getDoc,
 } from "firebase/firestore";
 import { db } from "../../firebaseConfig";
 import { getRoomId } from "../../utils/common";
@@ -29,6 +30,7 @@ import { useAuth } from "../../context/authContext";
 import * as ImagePicker from "expo-image-picker";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { formatFirestoreError, formatStorageError, logError } from "../../utils/errorHandler";
+import { sendExpoPush } from "../../utils/notification";
 
 export default function ChatRoom() {
   const item = useLocalSearchParams(); //second user
@@ -128,6 +130,24 @@ export default function ChatRoom() {
         read: false,
       });
 
+      // Send push notification to recipient
+      try {
+        const recipientDoc = await getDoc(doc(db, "users", item?.userId));
+        if (recipientDoc.exists()) {
+          const recipientData = recipientDoc.data();
+          if (recipientData?.pushToken) {
+            await sendExpoPush(
+              recipientData.pushToken,
+              user?.username || "New message",
+              message.length > 50 ? message.substring(0, 50) + "..." : message,
+              { screen: "chatRoom", roomId, userId: user?.userId }
+            );
+          }
+        }
+      } catch (pushErr) {
+        console.log("[ChatRoom] Push notification failed:", pushErr.message);
+      }
+
       // Mark message as delivered after a short delay (simulating network)
       setTimeout(async () => {
         await updateDoc(doc(db, "rooms", roomId, "messages", newDoc.id), {
@@ -188,6 +208,24 @@ export default function ChatRoom() {
         delivered: false,
         read: false,
       });
+
+      // Send push notification for media message
+      try {
+        const recipientDoc = await getDoc(doc(db, "users", item?.userId));
+        if (recipientDoc.exists()) {
+          const recipientData = recipientDoc.data();
+          if (recipientData?.pushToken) {
+            await sendExpoPush(
+              recipientData.pushToken,
+              user?.username || "New message",
+              type === "image" ? "📷 Sent an image" : "Sent a file",
+              { screen: "chatRoom", roomId, userId: user?.userId }
+            );
+          }
+        }
+      } catch (pushErr) {
+        console.log("[ChatRoom] Push notification failed:", pushErr.message);
+      }
 
       // Mark message as delivered
       setTimeout(async () => {

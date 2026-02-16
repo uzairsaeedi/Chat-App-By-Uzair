@@ -20,13 +20,34 @@ export default function OutgoingCallScreen() {
     if (callId) {
       const ref = doc(db, "calls", callId);
       unsub = onSnapshot(ref, (snap) => {
-        if (snap.exists()) setCallInfo(snap.data());
+        if (snap.exists()) {
+          const data = snap.data();
+          setCallInfo(data);
+          
+          // Navigate to CallScreen when call is accepted
+          if (data.status === "accepted") {
+            if (soundRef.current) {
+              soundRef.current.stopAsync().catch(() => {});
+            }
+            router.replace({
+              pathname: '/CallScreen',
+              params: { callId },
+            });
+          }
+          // Go back if call was rejected or ended
+          else if (data.status === "rejected" || data.status === "ended") {
+            if (soundRef.current) {
+              soundRef.current.stopAsync().catch(() => {});
+            }
+            router.canGoBack() ? router.back() : router.replace('home');
+          }
+        }
       });
     }
     return () => {
       if (unsub) unsub();
     };
-  }, [callId]);
+  }, [callId, router]);
 
   // Ringtone functionality disabled - add ringtone.mp3 to assets folder to enable
   // useEffect(() => {

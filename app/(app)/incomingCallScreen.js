@@ -1,6 +1,6 @@
 // app/IncomingCallScreen.js
 import React, { useEffect, useRef, useState } from "react";
-import { View, Text, TouchableOpacity, Image, Platform } from "react-native";
+import { View, Text, TouchableOpacity, Image, Platform, PermissionsAndroid, Alert } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { doc, onSnapshot, updateDoc } from "firebase/firestore";
 import { db } from "../../firebaseConfig";
@@ -27,30 +27,75 @@ export default function IncomingCallScreen() {
     };
   }, [callId]);
 
-  // Ringtone functionality disabled - add ringtone.mp3 to assets folder to enable
-  // useEffect(() => {
-  //   (async () => {
-  //     const s = new Audio.Sound();
-  //     try {
-  //       await s.loadAsync(require("../../assets/ringtone.mp3"));
-  //       await s.setIsLoopingAsync(true);
-  //       await s.playAsync();
-  //       soundRef.current = s;
-  //     } catch (e) {}
-  //   })();
-  //   return () => {
-  //     if (soundRef.current) {
-  //       soundRef.current.stopAsync().catch(() => {});
-  //       soundRef.current.unloadAsync().catch(() => {});
-  //     }
-  //   };
-  // }, []);
+  // Play ringtone when incoming call screen opens
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS: false,
+          playsInSilentModeIOS: true,
+          staysActiveInBackground: true,
+          shouldDuckAndroid: true,
+        });
+        const s = new Audio.Sound();
+        // Use system notification sound as fallback
+        await s.loadAsync(
+          { uri: Platform.OS === 'android' 
+            ? 'content://settings/system/notification_sound'
+            : 'ipod-library://ringtone' },
+          { shouldPlay: true, isLooping: true }
+        );
+        if (mounted) {
+          soundRef.current = s;
+        }
+      } catch (e) {
+        // If system sound fails, silently continue without ringtone
+        console.log('[IncomingCall] Ringtone error:', e.message);
+      }
+    })();
+    return () => {
+      mounted = false;
+      if (soundRef.current) {
+        soundRef.current.stopAsync().catch(() => {});
+        soundRef.current.unloadAsync().catch(() => {});
+      }
+    };
+  }, []);
 
   const onAccept = async () => {
     if (soundRef.current) {
       soundRef.current.stopAsync().catch(() => {});
     }
-    await answerCall({ callId }, { isVideo: callInfo?.isVideo, router });
+
+    // Request permissions on Android
+    if (Platform.OS === 'android') {
+      const isVideo = callInfo?.isVideo;
+      const permissions = isVideo 
+        ? [PermissionsAndroid.PERMISSIONS.CAMERA, PermissionsAndroid.PERMISSIONS.RECORD_AUDIO]
+        : [PermissionsAndroid.PERMISSIONS.RECORD_AUDIO];
+      
+      const granted = await PermissionsAndroid.requestMultiple(permissions);
+      
+      const audioGranted = granted[PermissionsAndroid.PERMISSIONS.RECORD_AUDIO] === PermissionsAndroid.RESULTS.GRANTED;
+      const cameraGranted = !isVideo || granted[PermissionsAndroid.PERMISSIONS.CAMERA] === PermissionsAndroid.RESULTS.GRANTED;
+      
+      if (!audioGranted || !cameraGranted) {
+        Alert.alert(
+          'Permissions Required',
+          `Please grant ${isVideo ? 'camera and microphone' : 'microphone'} permissions to accept this call.`
+        );
+        return;
+      }
+    }
+
+    const result = await answerCall({ callId }, { isVideo: callInfo?.isVideo });
+    if (result?.success) {
+      router.replace({
+        pathname: '/CallScreen',
+        params: { callId },
+      });
+    }
   };
 
   const onReject = async () => {
