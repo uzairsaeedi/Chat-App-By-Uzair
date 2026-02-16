@@ -10,19 +10,56 @@ import { CallProvider } from "../context/callContext";
 import ErrorBoundary from "../components/ErrorBoundary";
 import codePush from "@revopush/react-native-code-push";
 
+// Set up notification handler
 if (
   Platform.OS !== "web" &&
   Notifications &&
   typeof Notifications.setNotificationHandler === "function"
 ) {
   Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowAlert: true,
-      shouldPlaySound: true,
-      shouldSetBadge: false,
-    }),
+    handleNotification: async (notification) => {
+      const data = notification?.request?.content?.data || {};
+      // Always show call notifications prominently
+      const isCall = data.screen === "incomingCallScreen";
+      return {
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+        priority: isCall ? Notifications.AndroidNotificationPriority.MAX : Notifications.AndroidNotificationPriority.HIGH,
+      };
+    },
   });
 }
+
+// Create notification channels for Android
+async function setupNotificationChannels() {
+  if (Platform.OS === 'android') {
+    // Default channel for messages
+    await Notifications.setNotificationChannelAsync('default', {
+      name: 'Messages',
+      importance: Notifications.AndroidImportance.HIGH,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: '#818cf8',
+      sound: 'default',
+    });
+
+    // High priority channel for calls
+    await Notifications.setNotificationChannelAsync('calls', {
+      name: 'Calls',
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 500, 200, 500, 200, 500],
+      lightColor: '#22c55e',
+      sound: 'default',
+      lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+      bypassDnd: true,
+    });
+
+    console.log('[Notifications] Channels created');
+  }
+}
+
+// Initialize channels
+setupNotificationChannels();
 
 const MainLayout = () => {
   const { isAuthenticated } = useAuth();

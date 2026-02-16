@@ -22,7 +22,7 @@ import { useRouter } from "expo-router";
 const CallContext = createContext();
 
 export const CallProvider = ({ children }) => {
-  const router = useRouter(); // fallback router if caller doesn't provide one
+  const router = useRouter();
   const pcRef = useRef(null);
   const localStreamRef = useRef(null);
   const [localStream, setLocalStream] = useState(null);
@@ -32,9 +32,17 @@ export const CallProvider = ({ children }) => {
 
   const firestoreCallUnsubRef = useRef(null);
   const candidatesUnsubRef = useRef(null);
+  
+  // Track if we've already processed the offer/answer to prevent duplicate setRemoteDescription calls
+  const hasProcessedOfferRef = useRef(false);
+  const hasProcessedAnswerRef = useRef(false);
 
   const clearLocal = async () => {
     try {
+      // Reset processing flags
+      hasProcessedOfferRef.current = false;
+      hasProcessedAnswerRef.current = false;
+      
       if (pcRef.current) {
         try {
           pcRef.current.close();
@@ -43,7 +51,9 @@ export const CallProvider = ({ children }) => {
       }
       if (localStreamRef.current) {
         try {
-          localStreamRef.current.getTracks().forEach((t) => t.stop());
+          localStreamRef.current.getTracks().forEach((t) => {
+            try { t.stop(); } catch (e) {}
+          });
         } catch (e) {}
         localStreamRef.current = null;
       }
@@ -78,14 +88,38 @@ export const CallProvider = ({ children }) => {
       const stream = await getLocalStream(isVideo);
       localStreamRef.current = stream;
       setLocalStream(stream);
+      console.log('[Call] Got local stream with tracks:', stream.getTracks().map(t => t.kind));
 
       const pc = createPeerConnection();
       pcRef.current = pc;
 
-      stream.getTracks().forEach((track) => pc.addTrack(track, stream));
+      // Add tracks to peer connection
+      stream.getTracks().forEach((track) => {
+        console.log('[Call] Adding track to PC:', track.kind);
+        pc.addTrack(track, stream);
+      });
+
+      // Handle incoming remote tracks
+      pc.ontrack = (event) => {
+        console.log('[Call] Received remote track:', event.track?.kind);
+        if (event.streams && event.streams[0]) {
+          console.log('[Call] Setting remote stream');
+          setRemoteStream(event.streams[0]);
+        }
+      };
+
+      // Monitor connection state
+      pc.onconnectionstatechange = () => {
+        console.log('[Call] Connection state:', pc.connectionState);
+      };
+
+      pc.oniceconnectionstatechange = () => {
+        console.log('[Call] ICE connection state:', pc.iceConnectionState);
+      };
 
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
+      console.log('[Call] Created and set local offer');
 
       // create a unique call doc id
       const callId = `call_${Date.now()}_${Math.random()
@@ -134,30 +168,35 @@ export const CallProvider = ({ children }) => {
         }
       };
 
-      // when remote track arrives -> set remoteStream
-      pc.ontrack = (event) => {
-        if (event.streams && event.streams[0]) {
-          setRemoteStream(event.streams[0]);
-        }
-      };
-
       // listen for answer and status changes
       firestoreCallUnsubRef.current = onSnapshot(callDocRef, async (snap) => {
         const data = snap.data();
         if (!data) return;
-        if (data.answer && pc && !pc.currentRemoteDescription) {
-          try {
-            await pc.setRemoteDescription(data.answer);
-          } catch (e) {
-            console.warn("setRemoteDescription err", e);
+        
+        // Only process answer once to avoid "stable state" error
+        if (data.answer && pc && !hasProcessedAnswerRef.current) {
+          const signalingState = pc.signalingState;
+          console.log('[Call] Caller received answer, signalingState:', signalingState);
+          
+          // Only set remote description if we're in the right state
+          if (signalingState === 'have-local-offer') {
+            hasProcessedAnswerRef.current = true;
+            try {
+              await pc.setRemoteDescription(data.answer);
+              console.log('[Call] Remote description set successfully');
+            } catch (e) {
+              console.warn("setRemoteDescription err", e);
+              hasProcessedAnswerRef.current = false; // Allow retry on error
+            }
           }
         }
+        
         if (
           data.status === "ended" ||
           data.status === "rejected" ||
           data.status === "cancelled"
         ) {
-          // remote ended the call
+          console.log('[Call] Call status changed to:', data.status);
           await clearLocal();
         }
       });
@@ -194,8 +233,20 @@ export const CallProvider = ({ children }) => {
       setIsVideoCall(isVideo);
 
       const callDocRef = doc(db, "calls", callId);
-      const snap = await callDocRef.get?.(); // defensive - may be undefined in some SDKs
-      // listen for changes (answer / status / candidates)
+      
+      // Get the call document first to read the offer
+      const callSnap = await getDoc(callDocRef);
+      if (!callSnap.exists()) {
+        console.error('[Call] Call document not found');
+        return { success: false, error: 'Call not found' };
+      }
+      
+      const callData = callSnap.data();
+      if (!callData.offer) {
+        console.error('[Call] No offer in call document');
+        return { success: false, error: 'No offer found' };
+      }
+
       const stream = await getLocalStream(isVideo);
       localStreamRef.current = stream;
       setLocalStream(stream);
@@ -203,43 +254,59 @@ export const CallProvider = ({ children }) => {
       const pc = createPeerConnection();
       pcRef.current = pc;
 
-      stream.getTracks().forEach((t) => pc.addTrack(t, stream));
+      // Add tracks to peer connection
+      stream.getTracks().forEach((track) => {
+        console.log('[Call] Adding track to PC:', track.kind);
+        pc.addTrack(track, stream);
+      });
 
-      // listen for doc and react when offer arrives
-      firestoreCallUnsubRef.current = onSnapshot(
-        callDocRef,
-        async (snapDoc) => {
-          const data = snapDoc.data();
-          if (!data) return;
-          if (data.offer && pc && !pc.currentRemoteDescription) {
-            try {
-              await pc.setRemoteDescription(data.offer);
-              const answer = await pc.createAnswer();
-              await pc.setLocalDescription(answer);
-              await updateDoc(callDocRef, {
-                answer: pc.localDescription?.toJSON
-                  ? pc.localDescription.toJSON()
-                  : pc.localDescription,
-                status: "accepted",
-              });
-            } catch (e) {
-              console.warn("answer handling err", e);
-            }
-          }
-          if (data.status === "ended" || data.status === "cancelled") {
-            await clearLocal();
-          }
+      // Handle incoming remote tracks
+      pc.ontrack = (event) => {
+        console.log('[Call] Received remote track:', event.track?.kind);
+        if (event.streams && event.streams[0]) {
+          console.log('[Call] Setting remote stream');
+          setRemoteStream(event.streams[0]);
         }
-      );
+      };
 
-      // add callerCandidates -> pc
+      // Set remote description (offer) and create answer immediately
+      console.log('[Call] Setting remote offer...');
+      await pc.setRemoteDescription(callData.offer);
+      hasProcessedOfferRef.current = true;
+      
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      console.log('[Call] Created and set local answer');
+
+      // Update the call document with our answer
+      await updateDoc(callDocRef, {
+        answer: pc.localDescription?.toJSON
+          ? pc.localDescription.toJSON()
+          : pc.localDescription,
+        status: "accepted",
+      });
+      console.log('[Call] Answer sent to Firebase');
+
+      // Listen for call status changes (ended, cancelled)
+      firestoreCallUnsubRef.current = onSnapshot(callDocRef, async (snapDoc) => {
+        const data = snapDoc.data();
+        if (!data) return;
+        if (data.status === "ended" || data.status === "cancelled") {
+          console.log('[Call] Call ended by remote');
+          await clearLocal();
+        }
+      });
+
+      // Listen for caller's ICE candidates and add them
       const callerCandidatesCol = collection(callDocRef, "callerCandidates");
       candidatesUnsubRef.current = onSnapshot(callerCandidatesCol, (snap) => {
         snap.docChanges().forEach(async (change) => {
           if (change.type === "added") {
             const cand = change.doc.data();
             try {
-              await pc.addIceCandidate(cand);
+              if (pc.remoteDescription) {
+                await pc.addIceCandidate(cand);
+              }
             } catch (e) {
               console.warn("addIceCandidate (caller) err", e);
             }
@@ -247,7 +314,7 @@ export const CallProvider = ({ children }) => {
         });
       });
 
-      // add our callee ICE candidates into calleeCandidates collection
+      // Send our ICE candidates to calleeCandidates collection
       pc.onicecandidate = async (e) => {
         if (e.candidate) {
           try {
@@ -255,15 +322,19 @@ export const CallProvider = ({ children }) => {
               collection(callDocRef, "calleeCandidates"),
               e.candidate.toJSON()
             );
-          } catch (e) {
-            console.warn("add callee candidate err", e);
+          } catch (err) {
+            console.warn("add callee candidate err", err);
           }
         }
       };
 
-      pc.ontrack = (event) => {
-        if (event.streams && event.streams[0])
-          setRemoteStream(event.streams[0]);
+      // Monitor connection state
+      pc.onconnectionstatechange = () => {
+        console.log('[Call] Connection state:', pc.connectionState);
+      };
+
+      pc.oniceconnectionstatechange = () => {
+        console.log('[Call] ICE connection state:', pc.iceConnectionState);
       };
 
       setCurrentCallId(callId);

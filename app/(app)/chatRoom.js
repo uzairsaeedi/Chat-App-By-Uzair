@@ -30,7 +30,7 @@ import { useAuth } from "../../context/authContext";
 import * as ImagePicker from "expo-image-picker";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { formatFirestoreError, formatStorageError, logError } from "../../utils/errorHandler";
-import { sendExpoPush } from "../../utils/notification";
+import { sendExpoPush, playMessageSound } from "../../utils/notification";
 
 export default function ChatRoom() {
   const item = useLocalSearchParams(); //second user
@@ -38,6 +38,7 @@ export default function ChatRoom() {
   const { user } = useAuth();
   const [messages, setMessages] = useState([]);
   const textRef = useRef("");
+  const isInitialLoadRef = useRef(true);
   const inputRef = useRef(null);
 
   useEffect(() => {
@@ -53,6 +54,19 @@ export default function ChatRoom() {
       let allMessages = snapshot.docs.map((doc) => {
         return { id: doc.id, ...doc.data() };
       });
+      
+      // Check for new messages from the other user (not initial load)
+      if (!isInitialLoadRef.current) {
+        const newMessages = snapshot.docChanges().filter(
+          change => change.type === 'added' && change.doc.data().userId !== user?.userId
+        );
+        if (newMessages.length > 0) {
+          // Play notification sound for new incoming message
+          playMessageSound();
+        }
+      }
+      isInitialLoadRef.current = false;
+      
       setMessages([...allMessages]);
 
       // Mark incoming messages as delivered first, then read

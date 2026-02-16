@@ -1,6 +1,6 @@
 // app/IncomingCallScreen.js
 import React, { useEffect, useRef, useState } from "react";
-import { View, Text, TouchableOpacity, Image, Platform, PermissionsAndroid, Alert } from "react-native";
+import { View, Text, TouchableOpacity, Image, Platform, PermissionsAndroid, Alert, Vibration } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { doc, onSnapshot, updateDoc } from "firebase/firestore";
 import { db } from "../../firebaseConfig";
@@ -13,13 +13,22 @@ export default function IncomingCallScreen() {
   const { answerCall, hangup } = useCall();
   const [callInfo, setCallInfo] = useState(null);
   const soundRef = useRef(null);
+  const vibrationRef = useRef(null);
 
   useEffect(() => {
     let unsub;
     if (callId) {
       const ref = doc(db, "calls", callId);
       unsub = onSnapshot(ref, (snap) => {
-        if (snap.exists()) setCallInfo(snap.data());
+        if (snap.exists()) {
+          const data = snap.data();
+          setCallInfo(data);
+          // If call was cancelled or ended, navigate away
+          if (data.status === "cancelled" || data.status === "ended") {
+            stopRingtone();
+            router.canGoBack() ? router.back() : router.replace('home');
+          }
+        }
       });
     }
     return () => {
@@ -27,46 +36,82 @@ export default function IncomingCallScreen() {
     };
   }, [callId]);
 
+  const stopRingtone = () => {
+    if (soundRef.current) {
+      soundRef.current.stopAsync().catch(() => {});
+      soundRef.current.unloadAsync().catch(() => {});
+      soundRef.current = null;
+    }
+    if (vibrationRef.current) {
+      clearInterval(vibrationRef.current);
+      vibrationRef.current = null;
+    }
+    Vibration.cancel();
+  };
+
   // Play ringtone when incoming call screen opens
   useEffect(() => {
     let mounted = true;
-    (async () => {
+    
+    const startRingtone = async () => {
       try {
+        // Set audio mode for ringtone
         await Audio.setAudioModeAsync({
           allowsRecordingIOS: false,
           playsInSilentModeIOS: true,
           staysActiveInBackground: true,
-          shouldDuckAndroid: true,
+          shouldDuckAndroid: false,
+          playThroughEarpieceAndroid: false,
         });
-        const s = new Audio.Sound();
-        // Use system notification sound as fallback
-        await s.loadAsync(
-          { uri: Platform.OS === 'android' 
-            ? 'content://settings/system/notification_sound'
-            : 'ipod-library://ringtone' },
-          { shouldPlay: true, isLooping: true }
+
+        // Create and play sound - use a tone generator approach
+        const { sound } = await Audio.Sound.createAsync(
+          // Use a data URI for a simple beep tone (440Hz sine wave)
+          { uri: 'https://www.soundjay.com/phone/phone-calling-1.mp3' },
+          { 
+            shouldPlay: true, 
+            isLooping: true,
+            volume: 1.0,
+          }
         );
+        
         if (mounted) {
-          soundRef.current = s;
+          soundRef.current = sound;
+          console.log('[IncomingCall] Ringtone started');
+        } else {
+          await sound.unloadAsync();
         }
       } catch (e) {
-        // If system sound fails, silently continue without ringtone
-        console.log('[IncomingCall] Ringtone error:', e.message);
+        console.log('[IncomingCall] Sound error, using vibration only:', e.message);
       }
-    })();
+
+      // Always start vibration pattern as backup
+      if (mounted) {
+        // Vibration pattern: vibrate 1s, pause 1s, repeat
+        const VIBRATION_PATTERN = [0, 1000, 1000];
+        
+        if (Platform.OS === 'android') {
+          Vibration.vibrate(VIBRATION_PATTERN, true); // true = repeat
+        } else {
+          // iOS doesn't support repeating vibration, so we use interval
+          Vibration.vibrate(1000);
+          vibrationRef.current = setInterval(() => {
+            Vibration.vibrate(1000);
+          }, 2000);
+        }
+      }
+    };
+
+    startRingtone();
+
     return () => {
       mounted = false;
-      if (soundRef.current) {
-        soundRef.current.stopAsync().catch(() => {});
-        soundRef.current.unloadAsync().catch(() => {});
-      }
+      stopRingtone();
     };
   }, []);
 
   const onAccept = async () => {
-    if (soundRef.current) {
-      soundRef.current.stopAsync().catch(() => {});
-    }
+    stopRingtone();
 
     // Request permissions on Android
     if (Platform.OS === 'android') {
@@ -99,9 +144,7 @@ export default function IncomingCallScreen() {
   };
 
   const onReject = async () => {
-    if (soundRef.current) {
-      soundRef.current.stopAsync().catch(() => {});
-    }
+    stopRingtone();
     await updateDoc(doc(db, "calls", callId), { status: "rejected" });
     router.canGoBack() ? router.back() : router.replace('home');
   };

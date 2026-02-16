@@ -129,9 +129,13 @@ const MessagesList = forwardRef(({ messages = [] }, ref) => {
   };
 
   useEffect(() => {
-    if (messages.length > 0 && listRef.current) {
+    if (messages.length > 0 && listRef.current?.scrollToEnd) {
       setTimeout(() => {
-        listRef.current.scrollToEnd({ animated: true });
+        try {
+          listRef.current?.scrollToEnd?.({ animated: true });
+        } catch (e) {
+          // Ignore scroll errors - list might be unmounted
+        }
       }, 100);
     }
   }, [messages]);
