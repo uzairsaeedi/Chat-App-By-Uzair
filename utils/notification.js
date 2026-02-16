@@ -45,15 +45,29 @@ export async function registerPushTokenToFirestore(uid) {
     }
     
     if (finalStatus !== 'granted') {
-      console.warn('Notification permission not granted');
+      console.warn('[Notification] Permission not granted');
       return null;
     }
 
-    // Only works on native (dev-client / standalone), may fail on web
-    const tokenObj = await Notifications.getExpoPushTokenAsync({
-      projectId: '18412ab2-1411-4cf5-afeb-26ca690a230e'
-    });
-    const token = tokenObj?.data ?? tokenObj?.pushToken ?? null;
+    // Get Expo push token - this works with or without Firebase
+    // For standalone Android APKs, ensure Firebase is initialized in native code
+    let token = null;
+    try {
+      const tokenObj = await Notifications.getExpoPushTokenAsync({
+        projectId: '18412ab2-1411-4cf5-afeb-26ca690a230e'
+      });
+      token = tokenObj?.data ?? tokenObj?.pushToken ?? null;
+    } catch (tokenErr) {
+      // If Expo token fails on Android, try device push token as fallback
+      console.warn('[Notification] Expo token failed, trying device token:', tokenErr.message);
+      try {
+        const deviceToken = await Notifications.getDevicePushTokenAsync();
+        token = deviceToken?.data ?? null;
+      } catch (deviceErr) {
+        console.warn('[Notification] Device token also failed:', deviceErr.message);
+        return null;
+      }
+    }
 
     if (token) {
       await updateDoc(
@@ -61,11 +75,14 @@ export async function registerPushTokenToFirestore(uid) {
         { pushToken: token },
         { merge: true }
       );
-      console.log('Push token registered:', token.substring(0, 20) + '...');
+      console.log('[Notification] Push token registered:', token.substring(0, 25) + '...');
       return token;
     }
+    
+    console.warn('[Notification] No token obtained');
+    return null;
   } catch (e) {
-    console.warn("registerPushTokenToFirestore err", e);
+    console.warn("[Notification] registerPushTokenToFirestore err:", e.message);
     return null;
   }
 }

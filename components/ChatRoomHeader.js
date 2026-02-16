@@ -108,14 +108,13 @@ export default function ChatRoomHeader({ user }) {
   };
 
   const handleUserPress = () => {
+    // Only pass essential params - profile page fetches status in real-time
     router.push({
       pathname: "/profile",
       params: {
         userId: user.userId,
         username: user.username,
         profileurl: user.profileurl,
-        isOnline: status.isOnline,
-        lastSeen: status.lastSeen ? JSON.stringify(status.lastSeen) : null,
       },
     });
   };

@@ -21,7 +21,31 @@ import { useAuth } from "../context/authContext";
 
 export default function ChatItem({ item, router, noBorder }) {
   const [lastMessage, setLastMessage] = useState(null);
+  const [isOnline, setIsOnline] = useState(false);
   const { user } = useAuth();
+
+  // Listen for user's online status in real-time
+  useEffect(() => {
+    if (!item?.userId) return;
+
+    const unsub = onSnapshot(
+      doc(db, "users", item.userId),
+      (snap) => {
+        if (snap.exists()) {
+          const data = snap.data();
+          setIsOnline(data.isOnline === true);
+        } else {
+          setIsOnline(false);
+        }
+      },
+      (error) => {
+        console.warn("[ChatItem] Status listener error:", error);
+        setIsOnline(false);
+      }
+    );
+
+    return () => unsub();
+  }, [item?.userId]);
 
   useEffect(() => {
     // Generate roomId from current user and the item user
@@ -156,12 +180,27 @@ export default function ChatItem({ item, router, noBorder }) {
         noBorder ? "" : "border-b border-b-neutral-200"
       }`}
     >
-      <Image
-        style={{ height: hp(6), width: hp(6), borderRadius: 100 }}
-        source={item?.profileurl}
-        placeholder={blurhash}
-        transition={500}
-      />
+      <View style={{ position: 'relative' }}>
+        <Image
+          style={{ height: hp(6), width: hp(6), borderRadius: 100 }}
+          source={item?.profileurl}
+          placeholder={blurhash}
+          transition={500}
+        />
+        <View
+          style={{
+            position: 'absolute',
+            bottom: 0,
+            right: 0,
+            width: hp(1.5),
+            height: hp(1.5),
+            borderRadius: hp(0.75),
+            backgroundColor: isOnline ? '#22c55e' : '#9ca3af',
+            borderWidth: 2,
+            borderColor: 'white',
+          }}
+        />
+      </View>
 
       <View className="flex-1 ml-3">
         <View className="flex-row justify-between items-center">
