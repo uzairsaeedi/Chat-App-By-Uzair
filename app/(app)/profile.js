@@ -1,5 +1,5 @@
-import { View, Text, TouchableOpacity, ScrollView } from "react-native";
-import React, { useEffect, useState } from "react";
+import { View, Text, TouchableOpacity, ScrollView, Pressable } from "react-native";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { Image } from "expo-image";
 import { StatusBar } from "expo-status-bar";
@@ -16,6 +16,14 @@ export default function Profile() {
   const params = useLocalSearchParams();
   const router = useRouter();
   const [userStatus, setUserStatus] = useState({ isOnline: false, lastSeen: null });
+
+  const handleGoBack = useCallback(() => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('home');
+    }
+  }, [router]);
 
   useEffect(() => {
     if (!params?.userId) return;
@@ -80,9 +88,13 @@ export default function Profile() {
         options={{
           title: "User Profile",
           headerLeft: () => (
-            <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('home')}>
+            <Pressable 
+              onPress={handleGoBack}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}
+            >
               <Entypo name="chevron-left" size={hp(4)} color="#737373" />
-            </TouchableOpacity>
+            </Pressable>
           ),
         }}
       />

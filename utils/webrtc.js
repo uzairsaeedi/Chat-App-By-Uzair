@@ -1,6 +1,11 @@
 // utils/webrtc.js
 import { RTCPeerConnection, mediaDevices } from "react-native-webrtc";
 
+// Only log in development
+const logDebug = (...args) => {
+  if (__DEV__) console.log(...args);
+};
+
 export const ICE_SERVERS = {
   iceServers: [
     { urls: "stun:stun.l.google.com:19302" },
@@ -24,28 +29,33 @@ export const ICE_SERVERS = {
 };
 
 export async function getLocalStream(isVideo = false) {
-  const constraints = {
-    audio: {
-      echoCancellation: true,
-      noiseSuppression: true,
-      autoGainControl: true,
-    },
-    video: isVideo ? {
-      facingMode: "user",
-      width: { ideal: 640 },
-      height: { ideal: 480 },
-      frameRate: { ideal: 30 },
-    } : false,
-  };
-  
-  console.log('[WebRTC] Getting local stream with constraints:', JSON.stringify(constraints));
-  const stream = await mediaDevices.getUserMedia(constraints);
-  console.log('[WebRTC] Got stream with tracks:', stream.getTracks().map(t => ({ kind: t.kind, enabled: t.enabled })));
-  return stream;
+  try {
+    const constraints = {
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      },
+      video: isVideo ? {
+        facingMode: "user",
+        width: { ideal: 640 },
+        height: { ideal: 480 },
+        frameRate: { ideal: 30 },
+      } : false,
+    };
+    
+    logDebug('[WebRTC] Getting local stream with constraints:', JSON.stringify(constraints));
+    const stream = await mediaDevices.getUserMedia(constraints);
+    logDebug('[WebRTC] Got stream with tracks:', stream.getTracks().map(t => ({ kind: t.kind, enabled: t.enabled })));
+    return stream;
+  } catch (error) {
+    console.error('[WebRTC] Failed to get local stream:', error.message || error);
+    throw error;
+  }
 }
 
 export function createPeerConnection() {
   const pc = new RTCPeerConnection(ICE_SERVERS);
-  console.log('[WebRTC] Created peer connection');
+  logDebug('[WebRTC] Created peer connection');
   return pc;
 }

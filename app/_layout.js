@@ -1,5 +1,5 @@
 // app/_layout.js
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { View, Platform } from "react-native";
 import { Slot, useRouter, useSegments } from "expo-router";
 import "../global.css";
@@ -65,9 +65,27 @@ const MainLayout = () => {
   const { isAuthenticated } = useAuth();
   const segments = useSegments();
   const router = useRouter();
+  const [isNavigationReady, setIsNavigationReady] = useState(false);
+
+  // Debounce navigation to prevent flickering on app resume
+  useEffect(() => {
+    // Wait a tick after auth state is determined before navigating
+    if (typeof isAuthenticated === "undefined") {
+      setIsNavigationReady(false);
+      return;
+    }
+    
+    // Small delay to ensure we don't flash on quick state changes
+    const timer = setTimeout(() => {
+      setIsNavigationReady(true);
+    }, 50);
+    
+    return () => clearTimeout(timer);
+  }, [isAuthenticated]);
 
   useEffect(() => {
-    if (typeof isAuthenticated === "undefined") return;
+    if (!isNavigationReady || typeof isAuthenticated === "undefined") return;
+    
     const inApp = segments[0] === "(app)";
     const currentSegment = segments[0];
     // Allow access to auth screens when not authenticated
@@ -79,7 +97,7 @@ const MainLayout = () => {
     } else if (isAuthenticated === false && !onAuthScreen) {
       router.replace("signIn");
     }
-  }, [isAuthenticated, segments, router]);
+  }, [isAuthenticated, segments, router, isNavigationReady]);
 
   useEffect(() => {
     if (Platform.OS === "web") return;

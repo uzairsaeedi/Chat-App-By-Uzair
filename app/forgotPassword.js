@@ -1,5 +1,5 @@
-import { View, Text, TextInput, TouchableOpacity, Alert } from 'react-native'
-import React, { useRef, useState } from 'react'
+import { View, Text, TextInput, Pressable, Alert } from 'react-native'
+import React, { useRef, useState, useCallback } from 'react'
 import {widthPercentageToDP as wp, heightPercentageToDP as hp} from 'react-native-responsive-screen';
 import { StatusBar } from 'expo-status-bar';
 import { Octicons } from '@expo/vector-icons';
@@ -12,6 +12,14 @@ export default function ForgotPassword() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const { resetPassword } = useAuth();
+
+  const handleGoBack = useCallback(() => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('signIn');
+    }
+  }, [router]);
 
   const emailRef = useRef("");
 
@@ -88,25 +96,31 @@ export default function ForgotPassword() {
                     <Loading size={hp(6.5)}/>
                   </View>
                 ) : (
-                  <TouchableOpacity 
+                  <Pressable 
                     onPress={handleResetPassword} 
-                    style={{height: hp(6.5)}} 
+                    style={({ pressed }) => ({ 
+                      height: hp(6.5),
+                      opacity: pressed ? 0.7 : 1 
+                    })} 
                     className="bg-indigo-500 rounded-xl justify-center items-center"
                   >
                     <Text style={{fontSize: hp(2.7)}} className="text-white font-bold tracking-wider">
                       Send Reset Email
                     </Text>
-                  </TouchableOpacity>
+                  </Pressable>
                 )
               }
             </View>
 
             <View className="flex-row justify-center mt-4">
-              <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('signIn')}>
+              <Pressable 
+                onPress={handleGoBack}
+                style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}
+              >
                 <Text style={{fontSize: hp(1.8)}} className="font-semibold text-indigo-500">
                   Back to Sign In
                 </Text>
-              </TouchableOpacity>
+              </Pressable>
             </View>
           </View>
         </View>

@@ -1,5 +1,5 @@
-import { View, Text, TextInput, TouchableOpacity, Alert } from "react-native";
-import React, { useState, useRef, useEffect } from "react";
+import { View, Text, TextInput, Pressable, Alert } from "react-native";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import ChatRoomHeader from "../../components/ChatRoomHeader";
@@ -262,7 +262,6 @@ export default function ChatRoom() {
       <View className="flex-1 bg-white">
         <StatusBar style="dark" />
         <ChatRoomHeader user={item} router={router} />
-        <View className="h-3 border-b border-neutral-300" />
         <View className="flex-1 justify-between bg-neutral-100 overflo-visible">
           <View className="flex-1">
             <MessagesList messages={messages} />
@@ -270,9 +269,13 @@ export default function ChatRoom() {
 
           <View style={{ marginBottom: hp(1.7) }} className="pt-2">
             <View className="flex-row mx-3 justify-between bg-white border p-2 border-neutral-300 rounded-full pl-5">
-              <TouchableOpacity onPress={pickImage} className="p-2 mr-[1px]">
+              <Pressable 
+                onPress={pickImage} 
+                className="p-2 mr-[1px]"
+                style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}
+              >
                 <Ionicons name="image-outline" size={hp(2.7)} color="#737373" />
-              </TouchableOpacity>
+              </Pressable>
 
               <TextInput
                 ref={inputRef}
@@ -282,12 +285,13 @@ export default function ChatRoom() {
                 className="flex-1 mr-2"
               />
 
-              <TouchableOpacity
+              <Pressable
                 onPress={handleSendMessage}
                 className="bg-neutral-200 p-2 mr-[1px] rounded-full"
+                style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}
               >
                 <Feather name="send" size={hp(2.7)} color="#737373" />
-              </TouchableOpacity>
+              </Pressable>
             </View>
           </View>
         </View>

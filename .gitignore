@@ -22,10 +22,10 @@ android/app/build/
 android/app/.cxx/
 android/build/
 android/.gradle/
-android/app/google-services.json
+# android/app/google-services.json
 *.apk
 *.aab
-google-services.json
+# google-services.json
 
 # iOS
 ios/Pods/

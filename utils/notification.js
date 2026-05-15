@@ -126,9 +126,9 @@ export async function playMessageSound() {
       messageSound = null;
     }
 
-    // Create and play message notification sound
+    // Use a reliable free sound URL (short notification beep)
     const { sound } = await Audio.Sound.createAsync(
-      { uri: 'https://www.soundjay.com/communication/sounds/notification-sound-7062.mp3' },
+      { uri: 'https://actions.google.com/sounds/v1/alarms/beep_short.ogg' },
       { shouldPlay: true, volume: 0.7 }
     );
     
@@ -141,9 +141,8 @@ export async function playMessageSound() {
         messageSound = null;
       }
     });
-    
-    console.log('[Notification] Message sound played');
   } catch (e) {
-    console.log('[Notification] Could not play message sound:', e.message);
+    // Silently fail - sound is not critical
+    if (__DEV__) console.log('[Notification] Could not play message sound:', e.message);
   }
 }

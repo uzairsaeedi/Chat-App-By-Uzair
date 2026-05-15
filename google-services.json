@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1078336900454",
+    "project_id": "food-delivery-2b886",
+    "storage_bucket": "food-delivery-2b886.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1078336900454:android:3095886740aa9632420ca7",
+        "android_client_info": {
+          "package_name": "com.uzairsaeedi.ChatAppByUzair"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAJmvNVTa7lI9Ed_NbbqYwVOQKgCIRSFMA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

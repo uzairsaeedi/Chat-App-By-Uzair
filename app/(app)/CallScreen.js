@@ -1,6 +1,6 @@
 // app/CallScreen.js
 import React, { useEffect, useState } from "react";
-import { View, Text, TouchableOpacity } from "react-native";
+import { View, Text, Pressable, ActivityIndicator } from "react-native";
 import { RTCView } from "react-native-webrtc";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useCall } from "../../context/callContext";
@@ -12,18 +12,26 @@ export default function CallScreen() {
   const { callId } = useLocalSearchParams();
   const { localStream, remoteStream, hangup, isVideoCall } = useCall();
   const [callEnded, setCallEnded] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Listen for call status changes to detect when remote ends the call
   useEffect(() => {
-    if (!callId) return;
+    if (!callId) {
+      setIsLoading(false);
+      return;
+    }
 
     const callRef = doc(db, "calls", callId);
     const unsub = onSnapshot(callRef, (snap) => {
+      setIsLoading(false);
       const data = snap.data();
       if (data && (data.status === "ended" || data.status === "cancelled" || data.status === "rejected")) {
         console.log('[CallScreen] Call ended remotely, status:', data.status);
         setCallEnded(true);
       }
+    }, (error) => {
+      console.error('[CallScreen] Firestore error:', error);
+      setIsLoading(false);
     });
 
     return () => unsub();
@@ -42,6 +50,29 @@ export default function CallScreen() {
     await hangup(callId);
     router.canGoBack() ? router.back() : router.replace('home');
   };
+
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, backgroundColor: "black", justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" color="#fff" />
+        <Text style={{ color: "#fff", marginTop: 16 }}>Connecting call...</Text>
+      </View>
+    );
+  }
+
+  if (!callId) {
+    return (
+      <View style={{ flex: 1, backgroundColor: "black", justifyContent: "center", alignItems: "center" }}>
+        <Text style={{ color: "#fff", fontSize: 18 }}>Call not found</Text>
+        <Pressable
+          onPress={() => router.canGoBack() ? router.back() : router.replace('home')}
+          style={{ marginTop: 20, padding: 14, backgroundColor: "#444", borderRadius: 8 }}
+        >
+          <Text style={{ color: "#fff" }}>Go Back</Text>
+        </Pressable>
+      </View>
+    );
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: "black" }}>
@@ -92,19 +123,20 @@ export default function CallScreen() {
         </View>
       )}
 
-      <TouchableOpacity
+      <Pressable
         onPress={onEnd}
-        style={{
-          backgroundColor: "red",
+        style={({ pressed }) => ({
+          backgroundColor: pressed ? "#b22222" : "red",
           padding: 18,
           borderRadius: 50,
           alignSelf: "center",
           position: "absolute",
           bottom: 40,
-        }}
+          opacity: pressed ? 0.8 : 1,
+        })}
       >
         <Text style={{ color: "white", fontWeight: "bold", fontSize: 16 }}>End Call</Text>
-      </TouchableOpacity>
+      </Pressable>
     </View>
   );
 }

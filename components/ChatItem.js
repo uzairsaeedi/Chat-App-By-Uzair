@@ -1,6 +1,6 @@
 // components/ChatItem.js
-import React, { useEffect, useState } from "react";
-import { View, Text, TouchableOpacity } from "react-native";
+import React, { useEffect, useState, useCallback, memo } from "react";
+import { View, Text, Pressable } from "react-native";
 import { Image } from "expo-image";
 import { blurhash, getRoomId } from "../utils/common";
 import { db } from "../firebaseConfig";
@@ -19,7 +19,7 @@ import {
 } from "react-native-responsive-screen";
 import { useAuth } from "../context/authContext";
 
-export default function ChatItem({ item, router, noBorder }) {
+function ChatItem({ item, router, noBorder }) {
   const [lastMessage, setLastMessage] = useState(null);
   const [isOnline, setIsOnline] = useState(false);
   const { user } = useAuth();
@@ -67,8 +67,6 @@ export default function ChatItem({ item, router, noBorder }) {
       setLastMessage(null);
       return;
     }
-    const pathInfo = `rooms/${roomId}/messages`;
-    console.log("[ChatItem] listening to:", pathInfo);
 
     const q = query(
       collection(db, "rooms", roomId, "messages"),
@@ -136,7 +134,7 @@ export default function ChatItem({ item, router, noBorder }) {
     return () => unsub();
   }, [item?.userId, user?.userId]);
 
-  const openChatRoom = () => {
+  const openChatRoom = useCallback(() => {
     router.push({
       pathname: "/chatRoom",
       params: {
@@ -146,7 +144,7 @@ export default function ChatItem({ item, router, noBorder }) {
         roomId: item.roomId || "",
       },
     });
-  };
+  }, [router, item]);
 
   const formatTime = (timestamp) => {
     if (!timestamp) return "";
@@ -186,8 +184,9 @@ export default function ChatItem({ item, router, noBorder }) {
   };
 
   return (
-    <TouchableOpacity
+    <Pressable
       onPress={openChatRoom}
+      style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
       className={`flex-row items-center mx-4 mb-4 pb-2 ${
         noBorder ? "" : "border-b border-b-neutral-200"
       }`}
@@ -240,6 +239,8 @@ export default function ChatItem({ item, router, noBorder }) {
           )}
         </View>
       </View>
-    </TouchableOpacity>
+    </Pressable>
   );
 }
+
+export default memo(ChatItem);

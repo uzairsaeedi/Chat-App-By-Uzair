@@ -1,6 +1,7 @@
 // app/IncomingCallScreen.js
 import React, { useEffect, useRef, useState } from "react";
-import { View, Text, TouchableOpacity, Image, Platform, PermissionsAndroid, Alert, Vibration } from "react-native";
+import { View, Text, Pressable, Platform, PermissionsAndroid, Alert, Vibration, ActivityIndicator } from "react-native";
+import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { doc, onSnapshot, updateDoc } from "firebase/firestore";
 import { db } from "../../firebaseConfig";
@@ -12,6 +13,7 @@ export default function IncomingCallScreen() {
   const router = useRouter();
   const { answerCall, hangup } = useCall();
   const [callInfo, setCallInfo] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
   const soundRef = useRef(null);
   const vibrationRef = useRef(null);
 
@@ -20,6 +22,7 @@ export default function IncomingCallScreen() {
     if (callId) {
       const ref = doc(db, "calls", callId);
       unsub = onSnapshot(ref, (snap) => {
+        setIsLoading(false);
         if (snap.exists()) {
           const data = snap.data();
           setCallInfo(data);
@@ -29,7 +32,12 @@ export default function IncomingCallScreen() {
             router.canGoBack() ? router.back() : router.replace('home');
           }
         }
+      }, (error) => {
+        console.error('[IncomingCall] Firestore error:', error);
+        setIsLoading(false);
       });
+    } else {
+      setIsLoading(false);
     }
     return () => {
       if (unsub) unsub();
@@ -64,10 +72,9 @@ export default function IncomingCallScreen() {
           playThroughEarpieceAndroid: false,
         });
 
-        // Create and play sound - use a tone generator approach
+        // Create and play sound - use a working ringtone URL
         const { sound } = await Audio.Sound.createAsync(
-          // Use a data URI for a simple beep tone (440Hz sine wave)
-          { uri: 'https://www.soundjay.com/phone/phone-calling-1.mp3' },
+          { uri: 'https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg' },
           { 
             shouldPlay: true, 
             isLooping: true,
@@ -149,7 +156,30 @@ export default function IncomingCallScreen() {
     router.canGoBack() ? router.back() : router.replace('home');
   };
 
-  if (!callInfo) return null;
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#000" }}>
+        <ActivityIndicator size="large" color="#fff" />
+        <Text style={{ color: "#fff", marginTop: 16 }}>Loading call...</Text>
+      </View>
+    );
+  }
+
+  if (!callId || !callInfo) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#000" }}>
+        <Text style={{ color: "#fff", fontSize: 18 }}>Call not found</Text>
+        <Pressable
+          onPress={() => router.canGoBack() ? router.back() : router.replace('home')}
+          style={{ marginTop: 20, padding: 14, backgroundColor: "#444", borderRadius: 8 }}
+        >
+          <Text style={{ color: "#fff" }}>Go Back</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  const callerInitial = (callInfo?.callerName || "?").charAt(0).toUpperCase();
 
   return (
     <View
@@ -160,10 +190,29 @@ export default function IncomingCallScreen() {
         backgroundColor: "#000",
       }}
     >
-      <Image
-        source={{ uri: callInfo?.callerPhoto || undefined }}
-        style={{ width: 160, height: 160, borderRadius: 90, marginBottom: 20 }}
-      />
+      {callInfo?.callerPhoto ? (
+        <Image
+          source={{ uri: callInfo.callerPhoto }}
+          style={{ width: 160, height: 160, borderRadius: 80, marginBottom: 20 }}
+          contentFit="cover"
+        />
+      ) : (
+        <View
+          style={{
+            width: 160,
+            height: 160,
+            borderRadius: 80,
+            marginBottom: 20,
+            backgroundColor: "#444",
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+        >
+          <Text style={{ color: "#fff", fontSize: 64, fontWeight: "bold" }}>
+            {callerInitial}
+          </Text>
+        </View>
+      )}
       <Text style={{ color: "#fff", fontSize: 22 }}>
         {callInfo?.callerName || "Incoming call"}
       </Text>
@@ -172,23 +221,29 @@ export default function IncomingCallScreen() {
       </Text>
 
       <View style={{ flexDirection: "row", marginTop: 30, gap: 20 }}>
-        <TouchableOpacity
+        <Pressable
           onPress={onAccept}
-          style={{
-            backgroundColor: "green",
+          style={({ pressed }) => ({
+            backgroundColor: pressed ? "#2e8b2e" : "green",
             padding: 14,
             borderRadius: 40,
             marginRight: 20,
-          }}
+            opacity: pressed ? 0.8 : 1,
+          })}
         >
           <Text style={{ color: "#fff" }}>Accept</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
+        </Pressable>
+        <Pressable
           onPress={onReject}
-          style={{ backgroundColor: "red", padding: 14, borderRadius: 40 }}
+          style={({ pressed }) => ({
+            backgroundColor: pressed ? "#b22222" : "#D10000",
+            padding: 14,
+            borderRadius: 40,
+            opacity: pressed ? 0.8 : 1,
+          })}
         >
           <Text style={{ color: "#fff" }}>Reject</Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
     </View>
   );

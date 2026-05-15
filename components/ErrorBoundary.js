@@ -1,16 +1,33 @@
 // components/ErrorBoundary.js
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, AppState } from 'react-native';
 import { logError } from '../utils/errorHandler';
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
     this.state = { hasError: false, error: null };
+    this.appStateSubscription = null;
   }
 
   static getDerivedStateFromError(error) {
     return { hasError: true, error };
+  }
+
+  componentDidMount() {
+    // Auto-reset error state when app comes back to foreground
+    this.appStateSubscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'active' && this.state.hasError) {
+        console.log('[ErrorBoundary] App resumed, auto-resetting error state');
+        this.setState({ hasError: false, error: null });
+      }
+    });
+  }
+
+  componentWillUnmount() {
+    if (this.appStateSubscription) {
+      this.appStateSubscription.remove();
+    }
   }
 
   componentDidCatch(error, errorInfo) {

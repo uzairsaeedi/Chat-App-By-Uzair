@@ -21,6 +21,11 @@ import { useRouter } from "expo-router";
 
 const CallContext = createContext();
 
+// Only log in development
+const logDebug = (...args) => {
+  if (__DEV__) console.log(...args);
+};
+
 export const CallProvider = ({ children }) => {
   const router = useRouter();
   const pcRef = useRef(null);
@@ -81,52 +86,66 @@ export const CallProvider = ({ children }) => {
   // startCall: create pc, local stream, create offer, write call doc and callerCandidates
   // returns { success: true, callId } or { success: false, error }
   const startCall = async ({ caller, callee }, { isVideo = false } = {}) => {
+    logDebug('[CallContext] startCall invoked');
+    logDebug('[CallContext] caller:', JSON.stringify(caller));
+    logDebug('[CallContext] callee:', JSON.stringify(callee));
+    logDebug('[CallContext] isVideo:', isVideo);
+    
     try {
+      logDebug('[CallContext] Clearing local state...');
       await clearLocal();
       setIsVideoCall(isVideo);
+      logDebug('[CallContext] Local state cleared');
 
+      logDebug('[CallContext] Getting local stream...');
       const stream = await getLocalStream(isVideo);
+      if (!stream) {
+        console.error('[CallContext] Failed to get local stream');
+        return { success: false, error: new Error('Failed to get local stream') };
+      }
       localStreamRef.current = stream;
       setLocalStream(stream);
-      console.log('[Call] Got local stream with tracks:', stream.getTracks().map(t => t.kind));
+      logDebug('[Call] Got local stream with tracks:', stream.getTracks().map(t => t.kind));
 
       const pc = createPeerConnection();
       pcRef.current = pc;
 
       // Add tracks to peer connection
       stream.getTracks().forEach((track) => {
-        console.log('[Call] Adding track to PC:', track.kind);
+        logDebug('[Call] Adding track to PC:', track.kind);
         pc.addTrack(track, stream);
       });
 
       // Handle incoming remote tracks
       pc.ontrack = (event) => {
-        console.log('[Call] Received remote track:', event.track?.kind);
+        logDebug('[Call] Received remote track:', event.track?.kind);
         if (event.streams && event.streams[0]) {
-          console.log('[Call] Setting remote stream');
+          logDebug('[Call] Setting remote stream');
           setRemoteStream(event.streams[0]);
         }
       };
 
       // Monitor connection state
       pc.onconnectionstatechange = () => {
-        console.log('[Call] Connection state:', pc.connectionState);
+        logDebug('[Call] Connection state:', pc.connectionState);
       };
 
       pc.oniceconnectionstatechange = () => {
-        console.log('[Call] ICE connection state:', pc.iceConnectionState);
+        logDebug('[Call] ICE connection state:', pc.iceConnectionState);
       };
 
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
-      console.log('[Call] Created and set local offer');
+      logDebug('[Call] Created and set local offer');
 
       // create a unique call doc id
       const callId = `call_${Date.now()}_${Math.random()
         .toString(36)
         .slice(2, 8)}`;
+      logDebug('[CallContext] Creating call document with ID:', callId);
       const callDocRef = doc(db, "calls", callId);
 
+      logDebug('[CallContext] Writing call document to Firestore...');
       await setDoc(callDocRef, {
         offer: pc.localDescription?.toJSON
           ? pc.localDescription.toJSON()
@@ -141,18 +160,19 @@ export const CallProvider = ({ children }) => {
         status: "ringing",
         createdAt: Date.now(),
       });
+      logDebug('[CallContext] Call document created successfully');
 
       const calleeSnap = await getDoc(doc(db, "users", callee.userId));
       const token = calleeSnap.exists() ? calleeSnap.data().pushToken : null;
       if (token) {
-        console.log('[Call] Sending notification to callee...');
+        logDebug('[Call] Sending notification to callee...');
         const result = await sendExpoPush(
           token,
           `${caller.username || "Caller"} is calling`,
           isVideo ? "Video call" : "Voice call",
           { screen: "incomingCallScreen", callId: callDocRef.id }
         );
-        console.log('[Call] Notification sent:', result?.data?.[0]?.status || 'success');
+        logDebug('[Call] Notification sent:', result?.data?.[0]?.status || 'success');
       } else {
         console.warn('[Call] Callee has no push token registered');
       }
@@ -176,14 +196,14 @@ export const CallProvider = ({ children }) => {
         // Only process answer once to avoid "stable state" error
         if (data.answer && pc && !hasProcessedAnswerRef.current) {
           const signalingState = pc.signalingState;
-          console.log('[Call] Caller received answer, signalingState:', signalingState);
+          logDebug('[Call] Caller received answer, signalingState:', signalingState);
           
           // Only set remote description if we're in the right state
           if (signalingState === 'have-local-offer') {
             hasProcessedAnswerRef.current = true;
             try {
               await pc.setRemoteDescription(data.answer);
-              console.log('[Call] Remote description set successfully');
+              logDebug('[Call] Remote description set successfully');
             } catch (e) {
               console.warn("setRemoteDescription err", e);
               hasProcessedAnswerRef.current = false; // Allow retry on error
@@ -196,7 +216,7 @@ export const CallProvider = ({ children }) => {
           data.status === "rejected" ||
           data.status === "cancelled"
         ) {
-          console.log('[Call] Call status changed to:', data.status);
+          logDebug('[Call] Call status changed to:', data.status);
           await clearLocal();
         }
       });
@@ -217,10 +237,12 @@ export const CallProvider = ({ children }) => {
       });
 
       setCurrentCallId(callId);
+      logDebug('[CallContext] Call started successfully, returning callId:', callId);
 
       return { success: true, callId };
     } catch (err) {
-      console.error("startCall err", err);
+      console.error("[CallContext] startCall failed with error:", err?.message || err);
+      console.error("[CallContext] Error stack:", err?.stack);
       await clearLocal();
       return { success: false, error: err };
     }
